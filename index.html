@@ -43,17 +43,38 @@ if (window.tailwind) tailwind.config = {
   ::-webkit-scrollbar-thumb:hover{background:#1D4ED8}
   [hidden],.hidden{display:none}
 
-  /* Splash & login background */
-  #splash{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;
-          background:linear-gradient(135deg,#0F1B3D 0%,#1E3A8A 45%,#2563EB 100%);overflow:hidden;transition:opacity .6s ease,visibility .6s ease}
+  /* ---------- พื้นหลังหน้าเข้าสู่ระบบ / หน้าโหลด: ไล่เฉดฟ้า-น้ำเงิน เบลอนุ่ม ---------- */
+  .auth-bg{position:absolute;inset:0;overflow:hidden;background:linear-gradient(140deg,#081640 0%,#12297A 42%,#1D4ED8 100%)}
+  .auth-bg::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 120%,rgba(255,255,255,.10),transparent 60%)}
+  .orb{position:absolute;border-radius:50%;filter:blur(90px);will-change:transform;animation:orbFloat 24s ease-in-out infinite}
+  .orb.o1{width:560px;height:560px;background:#3B82F6;opacity:.55;top:-180px;left:-140px}
+  .orb.o2{width:520px;height:520px;background:#60A5FA;opacity:.45;bottom:-200px;right:-120px;animation-delay:-8s}
+  .orb.o3{width:420px;height:420px;background:#0EA5E9;opacity:.28;top:38%;left:42%;animation-delay:-14s}
+  .orb.o4{width:320px;height:320px;background:#A5B4FC;opacity:.30;top:6%;right:18%;animation-delay:-4s}
+  @keyframes orbFloat{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(50px,-36px) scale(1.08)}66%{transform:translate(-36px,28px) scale(.94)}}
+
+  #splash{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;transition:opacity .7s ease,visibility .7s ease}
   #splash.hide{opacity:0;visibility:hidden}
-  .blob{position:absolute;border-radius:50%;filter:blur(46px);opacity:.45;mix-blend-mode:screen;animation:blob 16s infinite ease-in-out}
-  @keyframes blob{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(28px,-38px) scale(1.12)}66%{transform:translate(-24px,22px) scale(.92)}}
-  .deco-grid{position:absolute;inset:0;opacity:.13;background-image:linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px);background-size:44px 44px}
-  .ring{width:76px;height:76px;border-radius:50%;border:4px solid rgba(255,255,255,.25);border-top-color:#fff;animation:spin .9s linear infinite}
+  .splash-mark{position:relative;width:96px;height:96px;margin:0 auto 26px}
+  .splash-mark .core{position:absolute;inset:14px;border-radius:22px;background:#fff;display:grid;place-items:center;box-shadow:0 18px 40px -12px rgba(0,0,0,.45);animation:breathe 2.4s ease-in-out infinite}
+  .splash-mark .spin{position:absolute;inset:0;border-radius:50%;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;animation:spin 1.1s linear infinite}
+  @keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
   @keyframes spin{to{transform:rotate(360deg)}}
-  .bar{height:5px;border-radius:99px;background:rgba(255,255,255,.28);overflow:hidden}
-  .bar>i{display:block;height:100%;width:0;background:#fff;border-radius:99px;transition:width .35s ease}
+  .bar{height:4px;border-radius:99px;background:rgba(255,255,255,.2);overflow:hidden}
+  .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#BFDBFE,#fff);border-radius:99px;transition:width .5s cubic-bezier(.22,1,.36,1)}
+
+  /* การ์ดเข้าสู่ระบบ — จุดเด่นของหน้า */
+  .auth-wrap{position:relative;animation:cardIn .8s cubic-bezier(.22,1,.36,1) both}
+  .auth-glow{position:absolute;inset:-16px;border-radius:40px;background:linear-gradient(135deg,rgba(191,219,254,.8),rgba(96,165,250,.4));filter:blur(28px);opacity:.55;pointer-events:none}
+  .auth-card{position:relative;background:#fff;border-radius:28px;box-shadow:0 40px 90px -24px rgba(5,15,50,.65),0 0 0 1px rgba(255,255,255,.7)}
+  @keyframes cardIn{from{opacity:0;transform:translateY(26px) scale(.97)}to{opacity:1;transform:none}}
+  .auth-intro>*{animation:fadeUp .8s cubic-bezier(.22,1,.36,1) both}
+  .auth-intro>*:nth-child(2){animation-delay:.08s}.auth-intro>*:nth-child(3){animation-delay:.14s}.auth-intro>*:nth-child(4){animation-delay:.2s}.auth-intro>*:nth-child(5){animation-delay:.26s}
+  .feat{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:rgba(255,255,255,.12);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);color:#DBEAFE;flex-shrink:0}
+  .auth-inp{padding:12px 14px 12px 44px;font-size:15px;border-radius:14px;background:#F8FAFF}
+  .auth-inp:focus{background:#fff}
+  .form-swap{animation:fadeUp .45s cubic-bezier(.22,1,.36,1) both}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 
   /* Top loading bar */
   #topLoad{position:fixed;top:0;left:0;right:0;height:3px;z-index:10000;overflow:hidden}
@@ -68,7 +89,7 @@ if (window.tailwind) tailwind.config = {
   #sidebar{background:linear-gradient(180deg,#1E3A8A 0%,#1B2F6B 55%,#14224D 100%);transition:transform .32s cubic-bezier(.22,1,.36,1)}
   #fySelect option{color:#1e293b}
   .nav-item{position:relative;transition:all .2s ease}
-  .nav-item::before{content:'';position:absolute;left:-12px;top:50%;transform:translateY(-50%);width:4px;height:0;background:#FFFFFF;border-radius:0 4px 4px 0;transition:height .22s ease}
+  .nav-item::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:4px;height:0;background:#FFFFFF;border-radius:0 4px 4px 0;transition:height .22s ease}
   .nav-item.active::before{height:62%}
   .nav-item.active{background:rgba(255,255,255,.16);color:#fff;font-weight:700}
   .nav-item:hover{background:rgba(255,255,255,.10)}
@@ -100,8 +121,44 @@ if (window.tailwind) tailwind.config = {
   .icon-btn{width:34px;height:34px;display:inline-grid;place-items:center;border-radius:10px;color:#1D4ED8;transition:background .15s}
   .icon-btn:hover{background:#EFF6FF}
   .icon-btn.danger{color:#EF5350}.icon-btn.danger:hover{background:#FDECEC}
-  .modal-back{position:fixed;inset:0;background:rgba(15,27,61,.55);backdrop-filter:blur(3px);z-index:80;display:none;align-items:center;justify-content:center;padding:14px}
-  .modal-back.show{display:flex}
+  .modal-back{position:fixed;inset:0;background:rgba(15,27,61,.5);backdrop-filter:blur(4px);z-index:80;display:flex;align-items:center;justify-content:center;padding:14px;
+              opacity:0;visibility:hidden;transition:opacity .25s ease,visibility .25s ease}
+  .modal-back.show{opacity:1;visibility:visible}
+  #modalBox{transform:translateY(16px) scale(.97);opacity:0;transition:transform .32s cubic-bezier(.22,1,.36,1),opacity .25s ease}
+  .modal-back.show #modalBox{transform:none;opacity:1}
+
+  /* ---------- หน้าต่าง "กำลังบันทึก / กำลังโหลด" ---------- */
+  #busy{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;
+        background:rgba(12,24,64,.34);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);opacity:0;visibility:hidden;transition:opacity .28s ease,visibility .28s ease}
+  #busy.show{opacity:1;visibility:visible}
+  .busy-card{background:#fff;border-radius:22px;padding:28px 34px 24px;min-width:280px;max-width:360px;text-align:center;
+             box-shadow:0 30px 70px -20px rgba(8,20,60,.5);transform:translateY(12px) scale(.96);transition:transform .38s cubic-bezier(.22,1,.36,1)}
+  #busy.show .busy-card{transform:none}
+  .busy-icon{position:relative;width:64px;height:64px;margin:0 auto 16px}
+  .busy-ring{position:absolute;inset:0;border-radius:50%;border:4px solid #DBEAFE;border-top-color:#1D4ED8;animation:spin .85s linear infinite;transition:opacity .25s}
+  .busy-check{position:absolute;inset:0;border-radius:50%;background:#16A34A;color:#fff;display:grid;place-items:center;transform:scale(0);opacity:0;
+              transition:transform .45s cubic-bezier(.34,1.56,.64,1),opacity .2s}
+  .busy-check .mi{font-size:36px;font-variation-settings:'FILL' 1,'wght' 700,'GRAD' 0,'opsz' 40}
+  #busy.done .busy-ring{opacity:0}
+  #busy.done .busy-check{transform:scale(1);opacity:1}
+  .busy-text{font-weight:700;color:#1E3A8A;font-size:16px;min-height:24px;transition:opacity .22s ease,transform .22s ease}
+  .busy-text.out{opacity:0;transform:translateY(-6px)}
+  .busy-sub{font-size:12.5px;color:#64748B;margin-top:4px;min-height:18px;transition:opacity .3s}
+  .busy-bar{height:4px;border-radius:99px;background:#EFF6FF;overflow:hidden;margin-top:16px;position:relative;transition:opacity .25s}
+  .busy-bar>i{position:absolute;top:0;bottom:0;width:40%;border-radius:99px;background:linear-gradient(90deg,#60A5FA,#1D4ED8);animation:loadbar 1.15s ease-in-out infinite}
+  #busy.done .busy-bar{opacity:0}
+  .smooth-text{transition:opacity .22s ease,transform .22s ease}
+  .smooth-text.out{opacity:0;transform:translateY(-5px)}
+
+  /* ---------- ความลื่นไหลของการกด ---------- */
+  .btn,.icon-btn,.nav-item{position:relative;overflow:hidden;-webkit-tap-highlight-color:transparent}
+  .ripple{position:absolute;border-radius:50%;pointer-events:none;background:currentColor;opacity:.22;transform:scale(0);animation:ripple .6s ease-out forwards}
+  @keyframes ripple{to{transform:scale(1);opacity:0}}
+  .view-enter{animation:viewIn .42s cubic-bezier(.22,1,.36,1) both}
+  @keyframes viewIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+  .tbl tbody tr{transition:background-color .18s ease}
+  a,button,select,input,textarea{transition-property:color,background-color,border-color,box-shadow,transform,opacity;transition-duration:.18s}
+  @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
   .prog{height:8px;border-radius:99px;background:#E2E8F0;overflow:hidden}
   .prog>i{display:block;height:100%;border-radius:99px;transition:width .6s cubic-bezier(.22,1,.36,1)}
   .chartbox{position:relative;width:100%}
@@ -134,76 +191,74 @@ if (window.tailwind) tailwind.config = {
 
 <!-- ============ Splash ============ -->
 <div id="splash">
-  <div class="deco-grid"></div>
-  <div class="blob" style="width:340px;height:340px;background:#93C5FD;top:-80px;left:-60px"></div>
-  <div class="blob" style="width:300px;height:300px;background:#60A5FA;bottom:-60px;right:-40px;animation-direction:reverse"></div>
+  <div class="auth-bg" aria-hidden="true"><span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span><span class="orb o4"></span></div>
   <div class="relative text-center text-white px-6">
-    <div class="ring mx-auto mb-6"></div>
-    <div class="text-2xl font-bold" id="splashTitle">ระบบติดตามงบประมาณค่าใช้สอย</div>
-    <div class="opacity-80 mt-1" id="splashSub">กำลังเตรียมข้อมูล...</div>
+    <div class="splash-mark"><div class="spin"></div><div class="core"><span class="mi fill" style="font-size:34px;color:#1D4ED8">account_balance</span></div></div>
+    <div class="text-2xl font-bold tracking-tight" id="splashTitle">ระบบติดตามงบประมาณค่าใช้สอย</div>
+    <div class="text-blue-100/90 mt-2 smooth-text" id="splashSub">กำลังเตรียมระบบ...</div>
     <div class="bar w-64 mx-auto mt-6"><i id="splashBar"></i></div>
   </div>
 </div>
 
 <!-- ============ Login ============ -->
-<section id="login" class="hidden min-h-screen relative overflow-hidden flex items-center justify-center p-4" style="background:linear-gradient(135deg,#0F1B3D 0%,#1E3A8A 45%,#2563EB 100%)">
-  <div class="deco-grid"></div>
-  <div class="blob" style="width:380px;height:380px;background:#93C5FD;top:-100px;left:-80px"></div>
-  <div class="blob" style="width:320px;height:320px;background:#60A5FA;bottom:-80px;right:-60px;animation-direction:reverse"></div>
-  <div class="relative w-full max-w-4xl bg-white rounded-3xl shadow-pop overflow-hidden grid md:grid-cols-2 animate-slide-up">
-    <div class="hidden md:flex flex-col justify-between p-10 text-white relative overflow-hidden" style="background:linear-gradient(160deg,#0F1B3D,#1E3A8A 55%,#1D4ED8)">
-      <div class="deco-grid"></div>
-      <div class="relative">
-        <div id="loginLogo" class="w-16 h-16 rounded-2xl bg-white grid place-items-center overflow-hidden shadow-lg"></div>
-        <div class="text-2xl font-bold mt-6 leading-snug" id="loginSys"></div>
-        <div class="mt-2 font-semibold opacity-95" id="loginOrg"></div>
-        <div class="text-sm opacity-75" id="loginOrgSub"></div>
-      </div>
-      <ul class="relative space-y-3 text-sm opacity-95 mt-10">
-        <li class="flex items-center gap-3"><span class="mi fill" style="color:#BFDBFE">monitoring</span>ติดตามการใช้จ่ายงบประมาณแบบเรียลไทม์</li>
-        <li class="flex items-center gap-3"><span class="mi fill" style="color:#BFDBFE">table_view</span>บันทึกข้อมูลลง Google Sheets อัตโนมัติ</li>
-        <li class="flex items-center gap-3"><span class="mi fill" style="color:#BFDBFE">print</span>พิมพ์รายงานสรุปได้ทันที</li>
+<section id="login" class="hidden min-h-screen relative overflow-hidden flex items-center justify-center p-4 md:p-8">
+  <div class="auth-bg" aria-hidden="true"><span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span><span class="orb o4"></span></div>
+  <div class="relative z-10 w-full max-w-5xl grid lg:grid-cols-2 gap-12 items-center">
+    <div class="hidden lg:block text-white auth-intro">
+      <div id="loginLogo" class="w-16 h-16 rounded-2xl bg-white grid place-items-center overflow-hidden shadow-xl"></div>
+      <div class="text-4xl font-bold mt-8 leading-tight tracking-tight" id="loginSys"></div>
+      <div class="mt-3 text-lg text-blue-100 font-medium" id="loginOrg"></div>
+      <div class="text-sm text-blue-200/80" id="loginOrgSub"></div>
+      <ul class="mt-10 space-y-4 text-[15px] text-blue-50">
+        <li class="flex items-center gap-3.5"><span class="feat"><span class="mi fill">monitoring</span></span>ติดตามการใช้จ่ายงบประมาณแบบเรียลไทม์</li>
+        <li class="flex items-center gap-3.5"><span class="feat"><span class="mi fill">cloud_done</span></span>บันทึกข้อมูลลงฐานข้อมูลอัตโนมัติ</li>
+        <li class="flex items-center gap-3.5"><span class="feat"><span class="mi fill">print</span></span>พิมพ์รายงานสรุปได้ทันที</li>
       </ul>
     </div>
-    <form id="loginForm" class="p-8 md:p-10" autocomplete="on">
-      <div class="md:hidden flex items-center gap-3 mb-6">
-        <div id="loginLogoM" class="w-12 h-12 rounded-xl bg-brand-50 grid place-items-center overflow-hidden"></div>
-        <div><div class="font-bold text-brand-700 leading-tight" id="loginSysM"></div><div class="text-xs text-slate-500" id="loginOrgM"></div></div>
-      </div>
-      <h2 class="text-2xl font-bold text-brand-700">เข้าสู่ระบบ</h2>
-      <p class="text-slate-500 text-sm mb-6">กรุณากรอกชื่อผู้ใช้และรหัสผ่านของคุณ</p>
-      <label class="block mb-4"><span class="block text-[13px] font-semibold text-slate-600 mb-1.5">ชื่อผู้ใช้</span>
-        <div class="relative"><span class="mi absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">person</span>
-        <input name="username" class="inp" style="padding-left:40px" autocomplete="username" required></div></label>
-      <label class="block"><span class="block text-[13px] font-semibold text-slate-600 mb-1.5">รหัสผ่าน</span>
-        <div class="relative"><span class="mi absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">lock</span>
-        <input name="password" type="password" class="inp" style="padding-left:40px;padding-right:44px" autocomplete="current-password" required>
-        <button type="button" id="togglePw" class="absolute right-2 top-1/2 -translate-y-1/2 icon-btn" title="แสดง/ซ่อนรหัสผ่าน"><span class="mi text-[20px]">visibility</span></button></div></label>
-      <button class="btn btn-primary w-full mt-6" style="padding:12px" id="loginBtn" type="submit"><span class="mi">login</span>เข้าสู่ระบบ</button>
-      <div id="loginErr" class="hidden mt-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm px-4 py-3"></div>
-      <div class="mt-6 text-center"><button type="button" id="changeConn" class="hidden text-xs text-slate-400 hover:text-brand-500 underline-offset-2 hover:underline"><span class="mi text-[14px]">link</span> เปลี่ยนการเชื่อมต่อฐานข้อมูล</button></div>
-    </form>
 
-    <!-- ตั้งค่าการเชื่อมต่อครั้งแรก (แสดงเมื่อยังไม่มี URL ของ Apps Script) -->
-    <form id="setupForm" class="hidden p-8 md:p-10" novalidate>
-      <div class="w-12 h-12 rounded-xl bg-brand-50 text-brand-500 grid place-items-center mb-4"><span class="mi" style="font-size:28px">database</span></div>
-      <h2 class="text-2xl font-bold text-brand-700">เชื่อมต่อฐานข้อมูล</h2>
-      <p class="text-slate-500 text-sm mb-6">วาง URL ของเว็บแอป Google Apps Script ที่ได้จากการ Deploy (ลงท้ายด้วย <code>/exec</code>)</p>
-      <label class="block"><span class="block text-[13px] font-semibold text-slate-600 mb-1.5">URL ของเว็บแอป</span>
-        <div class="relative"><span class="mi absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">link</span>
-        <input name="url" class="inp" style="padding-left:40px" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off" spellcheck="false"></div></label>
-      <button class="btn btn-primary w-full mt-6" style="padding:12px" id="setupBtn" type="submit"><span class="mi">link</span>ทดสอบและเชื่อมต่อ</button>
-      <div id="setupErr" class="hidden mt-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm px-4 py-3"></div>
-      <details class="mt-6 rounded-xl bg-brand-50/70 border border-brand-100 p-4 text-sm text-slate-600">
-        <summary class="cursor-pointer font-semibold text-brand-700">หา URL นี้ได้จากที่ไหน?</summary>
-        <ol class="list-decimal ml-5 mt-2 space-y-1">
-          <li>เปิด Google Sheet ที่ใช้เก็บข้อมูล → <b>ส่วนขยาย → Apps Script</b></li>
-          <li>กด <b>การทำให้ใช้งานได้ → จัดการการทำให้ใช้งานได้</b></li>
-          <li>คัดลอก <b>URL ของเว็บแอป</b> มาวางที่ช่องด้านบน</li>
-        </ol>
-        <div class="mt-2 text-xs text-slate-500">ผู้ดูแลเว็บใส่ URL ไว้ในไฟล์ config.js ได้ เพื่อไม่ต้องกรอกหน้านี้ในทุกเครื่อง</div>
-      </details>
-    </form>
+    <div class="auth-wrap w-full max-w-[440px] mx-auto"><div class="auth-glow" aria-hidden="true"></div>
+    <div class="auth-card">
+      <form id="loginForm" class="p-8 md:p-10" autocomplete="on">
+        <div class="lg:hidden flex items-center gap-3 mb-7">
+          <div id="loginLogoM" class="w-12 h-12 rounded-xl bg-brand-50 grid place-items-center overflow-hidden shrink-0"></div>
+          <div class="min-w-0"><div class="font-bold text-brand-700 leading-tight" id="loginSysM"></div><div class="text-xs text-slate-500 truncate" id="loginOrgM"></div></div>
+        </div>
+        <div class="text-sm font-semibold text-brand-500 smooth-text" id="loginGreet">สวัสดี</div>
+        <h2 class="text-[28px] font-bold text-slate-800 leading-tight mt-1">เข้าสู่ระบบ</h2>
+        <p class="text-slate-500 text-sm mt-1 mb-7">กรอกชื่อผู้ใช้และรหัสผ่านเพื่อเริ่มใช้งาน</p>
+        <label class="block mb-4"><span class="block text-[13px] font-semibold text-slate-600 mb-1.5">ชื่อผู้ใช้</span>
+          <div class="relative"><span class="mi absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[21px]">person</span>
+          <input name="username" class="inp auth-inp" autocomplete="username" required></div></label>
+        <label class="block"><span class="block text-[13px] font-semibold text-slate-600 mb-1.5">รหัสผ่าน</span>
+          <div class="relative"><span class="mi absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[21px]">lock</span>
+          <input name="password" type="password" class="inp auth-inp" style="padding-right:48px" autocomplete="current-password" required>
+          <button type="button" id="togglePw" class="absolute right-2 top-1/2 -translate-y-1/2 icon-btn" title="แสดง/ซ่อนรหัสผ่าน"><span class="mi text-[20px]">visibility</span></button></div></label>
+        <button class="btn btn-primary w-full mt-7" style="padding:13px;font-size:15px;border-radius:14px" id="loginBtn" type="submit"><span class="mi">login</span>เข้าสู่ระบบ</button>
+        <div id="loginErr" class="hidden form-swap mt-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm px-4 py-3"></div>
+        <div class="mt-6 text-center"><button type="button" id="changeConn" class="hidden text-xs text-slate-400 hover:text-brand-500"><span class="mi text-[14px]">link</span> เปลี่ยนการเชื่อมต่อฐานข้อมูล</button></div>
+      </form>
+
+      <!-- ตั้งค่าการเชื่อมต่อครั้งแรก (แสดงเมื่อยังไม่มี URL ของ Apps Script) -->
+      <form id="setupForm" class="hidden p-8 md:p-10" novalidate>
+        <div class="w-12 h-12 rounded-xl bg-brand-50 text-brand-500 grid place-items-center mb-4"><span class="mi" style="font-size:28px">database</span></div>
+        <h2 class="text-2xl font-bold text-slate-800">เชื่อมต่อฐานข้อมูล</h2>
+        <p class="text-slate-500 text-sm mt-1 mb-6">วาง URL ของเว็บแอป Google Apps Script ที่ได้จากการ Deploy (ลงท้ายด้วย <code>/exec</code>)</p>
+        <label class="block"><span class="block text-[13px] font-semibold text-slate-600 mb-1.5">URL ของเว็บแอป</span>
+          <div class="relative"><span class="mi absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-[21px]">link</span>
+          <input name="url" class="inp auth-inp" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off" spellcheck="false"></div></label>
+        <button class="btn btn-primary w-full mt-6" style="padding:13px;font-size:15px;border-radius:14px" id="setupBtn" type="submit"><span class="mi">link</span>ทดสอบและเชื่อมต่อ</button>
+        <div id="setupErr" class="hidden form-swap mt-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm px-4 py-3"></div>
+        <details class="mt-6 rounded-xl bg-brand-50/70 border border-brand-100 p-4 text-sm text-slate-600">
+          <summary class="cursor-pointer font-semibold text-brand-700">หา URL นี้ได้จากที่ไหน?</summary>
+          <ol class="list-decimal ml-5 mt-2 space-y-1">
+            <li>เปิด Google Sheet ที่ใช้เก็บข้อมูล → <b>ส่วนขยาย → Apps Script</b></li>
+            <li>กด <b>การทำให้ใช้งานได้ → จัดการการทำให้ใช้งานได้</b></li>
+            <li>คัดลอก <b>URL ของเว็บแอป</b> มาวางที่ช่องด้านบน</li>
+          </ol>
+          <div class="mt-2 text-xs text-slate-500">ผู้ดูแลเว็บใส่ URL ไว้ในไฟล์ config.js ได้ เพื่อไม่ต้องกรอกหน้านี้ในทุกเครื่อง</div>
+        </details>
+      </form>
+    </div></div>
   </div>
 </section>
 
@@ -260,6 +315,16 @@ if (window.tailwind) tailwind.config = {
 </div>
 
 <div id="modal" class="modal-back"><div id="modalBox"></div></div>
+
+<!-- หน้าต่างแสดงสถานะ "กำลังบันทึก / กำลังโหลด" -->
+<div id="busy" role="status" aria-live="polite">
+  <div class="busy-card">
+    <div class="busy-icon"><div class="busy-ring"></div><div class="busy-check"><span class="mi">check</span></div></div>
+    <div class="busy-text" id="busyText">กำลังดำเนินการ...</div>
+    <div class="busy-sub" id="busySub"></div>
+    <div class="busy-bar"><i></i></div>
+  </div>
+</div>
 
 <script src="config.js"></script>
 <script src="app.js"></script>

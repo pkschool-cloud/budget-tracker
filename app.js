@@ -1,6 +1,6 @@
 /* =============================================================
  *  ระบบติดตามงบประมาณค่าใช้สอย — Frontend
- *  โฮสต์บน GitHub Pages · บันทึกข้อมูลลง Google Sheets ผ่าน Apps Script
+ *  โฮสต์บน GitHub Pages · บันทึกข้อมูลลงฐานข้อมูล (Google Sheets) ผ่าน Apps Script
  *  ถ้าไม่ได้ตั้ง API_URL ใน config.js จะทำงานในโหมดสาธิต (localStorage)
  * ============================================================= */
 (function () {
@@ -141,6 +141,84 @@ async function confirmBox(title, html, opt) {
   return r.isConfirmed;
 }
 
+/* ================= หน้าต่าง "กำลังบันทึก / กำลังโหลด" ================= */
+// ข้อความไหลตามบริบทของงาน — เปลี่ยนทีละขั้นแบบนุ่มนวล ข้อความสุดท้ายค้างไว้จนงานเสร็จ
+const BUSY_FLOW = {
+  save: (l) => [`กำลังบันทึก${l || 'ข้อมูล'}`, 'กำลังส่งข้อมูลไปยังฐานข้อมูล', 'กำลังตรวจสอบความถูกต้อง', 'อีกสักครู่ ใกล้เสร็จแล้ว'],
+  delete: (l) => [`กำลังลบ${l || 'ข้อมูล'}`, 'กำลังอัปเดตฐานข้อมูล', 'กำลังคำนวณยอดคงเหลือใหม่'],
+  load: () => ['กำลังโหลดข้อมูล', 'กำลังดึงข้อมูลจากฐานข้อมูล', 'กำลังคำนวณงบประมาณ', 'กำลังจัดเตรียมหน้าจอ'],
+  login: () => ['กำลังตรวจสอบบัญชีผู้ใช้', 'กำลังเข้าสู่ระบบ', 'กำลังโหลดข้อมูลของคุณ', 'กำลังจัดเตรียมแดชบอร์ด'],
+  logout: () => ['กำลังออกจากระบบ'],
+  upload: () => ['กำลังอัปโหลดไฟล์', 'กำลังจัดเก็บไฟล์อย่างปลอดภัย', 'กำลังสร้างลิงก์ไฟล์'],
+  import: (l) => [`กำลังนำเข้า${l || 'ข้อมูล'}`, 'กำลังบันทึกลงฐานข้อมูล', 'กำลังจัดเรียงข้อมูล', 'กำลังโหลดข้อมูลล่าสุด'],
+  reset: () => ['กำลังล้างข้อมูล', 'กำลังอัปเดตฐานข้อมูล'],
+  logs: () => ['กำลังโหลดบันทึกกิจกรรม', 'กำลังเรียงลำดับตามเวลา'],
+  connect: () => ['กำลังทดสอบการเชื่อมต่อ', 'กำลังตรวจสอบฐานข้อมูล'],
+  password: () => ['กำลังเปลี่ยนรหัสผ่าน', 'กำลังเข้ารหัสและบันทึก']
+};
+const BUSY_DONE = { save: 'บันทึกเรียบร้อย', delete: 'ลบข้อมูลเรียบร้อย', upload: 'อัปโหลดไฟล์เรียบร้อย', import: 'นำเข้าข้อมูลเรียบร้อย', reset: 'ล้างข้อมูลเรียบร้อย', connect: 'เชื่อมต่อสำเร็จ', password: 'เปลี่ยนรหัสผ่านเรียบร้อย' };
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+function greeting() {
+  const h = new Date().getHours();
+  return h >= 5 && h < 12 ? 'สวัสดีตอนเช้า' : h >= 12 && h < 17 ? 'สวัสดีตอนบ่าย' : h >= 17 && h < 21 ? 'สวัสดีตอนเย็น' : 'สวัสดี';
+}
+function smoothText(el, text) {
+  if (!el || el.textContent === text) return;
+  clearTimeout(el._st);
+  el.classList.add('out');
+  el._st = setTimeout(() => { el.textContent = text; el.classList.remove('out'); }, 200);
+}
+const Busy = {
+  depth: 0, timers: [], shownAt: 0,
+  open(kind, label) {
+    const el = $('#busy');
+    if (!el) return;
+    const flow = (BUSY_FLOW[kind] || BUSY_FLOW.load)(label);
+    this.clear();
+    el.classList.remove('done');
+    $('#busyText').classList.remove('out');
+    $('#busyText').textContent = flow[0] + '...';
+    $('#busySub').textContent = '';
+    el.classList.add('show');
+    this.shownAt = Date.now();
+    flow.slice(1).forEach((m, i) => this.timers.push(setTimeout(() => smoothText($('#busyText'), m + '...'), 1300 * (i + 1))));
+    this.timers.push(setTimeout(() => smoothText($('#busySub'), 'การเชื่อมต่อช้ากว่าปกติเล็กน้อย กรุณารอสักครู่'), 7000));
+  },
+  clear() { this.timers.forEach(clearTimeout); this.timers = []; },
+  async finish(doneText) {
+    this.clear();
+    const el = $('#busy');
+    if (!el) return;
+    const left = 420 - (Date.now() - this.shownAt);           // แสดงอย่างน้อยครู่หนึ่ง เพื่อไม่ให้กะพริบ
+    if (left > 0) await wait(left);
+    if (doneText) {
+      smoothText($('#busySub'), '');
+      smoothText($('#busyText'), doneText);
+      el.classList.add('done');
+      await wait(750);
+    }
+    this.close();
+  },
+  close() { this.clear(); const el = $('#busy'); if (el) { el.classList.remove('show'); setTimeout(() => el.classList.remove('done'), 300); } },
+  // ครอบงานทั้งชุด (เช่น ลบแล้วโหลดใหม่) ให้เป็นหน้าต่างเดียวที่ข้อความไหลต่อเนื่อง
+  async run(kind, label, fn, doneText) {
+    if (this.depth > 0 || S.booting) { this.depth++; try { return await fn(); } finally { this.depth--; } }
+    this.depth = 1;
+    this.open(kind, label);
+    try {
+      const r = await fn();
+      await this.finish(doneText === undefined ? BUSY_DONE[kind] : doneText);
+      return r;
+    } catch (e) { this.close(); throw e; } finally { this.depth = 0; }
+  }
+};
+const ACTION_BUSY = { save: 'save', saveUser: 'save', saveSettings: 'save', bulk: 'import', remove: 'delete', reset: 'reset', upload: 'upload', bootstrap: 'load', logs: 'logs', login: 'login', logout: 'logout', changePassword: 'password', ping: 'connect' };
+function busyLabel(action, p) {
+  if (action === 'saveUser') return 'ข้อมูลผู้ใช้งาน';
+  if (action === 'saveSettings') return 'การตั้งค่าระบบ';
+  return (p && TABLE_LABEL[p.table]) || '';
+}
+
 /* ================= การเชื่อมต่อ API ================= */
 let pending = 0;
 function setLoading(on) { const el = $('#topLoad'); if (el) el.hidden = !on; }
@@ -157,11 +235,13 @@ async function remote(action, payload, url) {
   if (!j.ok) throw new Error(j.error || 'เกิดข้อผิดพลาด');
   return j.data;
 }
-async function api(action, payload) {
-  payload = payload || {};
+async function api(action, payload, opts) {
+  payload = payload || {}; opts = opts || {};
+  const kind = opts.busy === false ? null : (opts.busy || ACTION_BUSY[action]);
   pending++; setLoading(true);
   try {
-    return await remote(action, payload);
+    if (!kind) return await remote(action, payload);
+    return await Busy.run(kind, opts.label != null ? opts.label : busyLabel(action, payload), () => remote(action, payload), opts.done);
   } catch (err) {
     if (err && err.message === 'SESSION_EXPIRED') handleExpired();
     throw err;
@@ -223,18 +303,23 @@ function fyElapsed(fy) {
 }
 
 /* ================= Modal ================= */
+let modalTimer = null;
 function openModal(html, size) {
-  const b = $('#modalBox');
-  b.className = `bg-white rounded-2xl shadow-pop w-full ${size || 'max-w-2xl'} animate-slide-up flex flex-col overflow-hidden`;
+  clearTimeout(modalTimer);
+  const b = $('#modalBox'), m = $('#modal');
+  b.className = `bg-white rounded-2xl shadow-pop w-full ${size || 'max-w-2xl'} flex flex-col overflow-hidden`;
   b.style.maxHeight = '92vh';
   b.innerHTML = html;
-  $('#modal').classList.add('show');
+  if (m.classList.contains('show')) { b.classList.add('form-swap'); }   // เปลี่ยนเนื้อหาในหน้าต่างเดิมแบบนุ่มนวล
+  m.classList.add('show');
   document.body.style.overflow = 'hidden';
 }
 function closeModal() {
-  $('#modal').classList.remove('show');
-  $('#modalBox').innerHTML = '';
+  const m = $('#modal');
+  m.classList.remove('show');
   document.body.style.overflow = '';
+  clearTimeout(modalTimer);
+  modalTimer = setTimeout(() => { if (!m.classList.contains('show')) $('#modalBox').innerHTML = ''; }, 300);
 }
 const modalHead = (icon, titleHtml, subHtml) => `<div class="px-5 md:px-6 py-4 border-b border-slate-100 flex items-center gap-3 shrink-0">
   <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-500 grid place-items-center shrink-0"><span class="mi">${icon}</span></div>
@@ -315,7 +400,6 @@ function openForm(cfg, rec, preset) {
       const saved = cfg.saveFn ? await cfg.saveFn(record, isNew) : await api('save', { table: cfg.table, record });
       upsertLocal(cfg.table, saved);
       closeModal();
-      toast(isNew ? 'เพิ่มข้อมูลเรียบร้อย' : 'บันทึกการแก้ไขเรียบร้อย');
       if (cfg.afterSave) cfg.afterSave(saved, isNew);
       rerender();
     } catch (err) {
@@ -393,9 +477,7 @@ async function delRecord(cfg, r) {
   const extra = cfg.deleteWarn ? cfg.deleteWarn(r) : '';
   if (!(await confirmBox('ยืนยันการลบข้อมูล?', `<b>${esc(label)}</b>${extra ? `<div class="mt-2 text-sm text-rose-600">${extra}</div>` : ''}<div class="text-sm text-slate-500 mt-2">การลบไม่สามารถย้อนกลับได้</div>`, { danger: true, ok: 'ลบข้อมูล' }))) return;
   try {
-    await api('remove', { table: cfg.table, id: r.id });
-    await loadAll();
-    toast('ลบข้อมูลเรียบร้อย');
+    await Busy.run('delete', cfg.entity || '', async () => { await api('remove', { table: cfg.table, id: r.id }); await loadAll(); });
     rerender();
   } catch (e) { alertErr(e); }
 }
@@ -461,7 +543,7 @@ const VIEWS = {};
 VIEWS.dashboard = () => {
   if (needFY()) return;
   const st = computeFY(S.fy), fy = st.fy, warn = warnPct();
-  $('#pageSub').textContent = `ภาพรวมการใช้จ่ายงบประมาณ · ปีงบประมาณ ${fy.year}`;
+  setTimeout(() => smoothText($('#pageSub'), `ภาพรวมการใช้จ่ายงบประมาณ · ปีงบประมาณ ${fy.year}`), 230);
   const near = st.items.filter((i) => i.budgetN > 0 && i.p >= warn).sort((a, b) => b.p - a.p).slice(0, 8);
   const recent = S.data.expenses.filter((e) => e.fiscalYearId === S.fy).sort((a, b) => String(b.date).localeCompare(String(a.date)) || String(b.createdAt).localeCompare(String(a.createdAt))).slice(0, 8);
   const el = fyElapsed(fy);
@@ -659,9 +741,8 @@ async function copyStructure(target) {
     const items = S.data.items.filter((i) => i.fiscalYearId === src && idMap[i.categoryId]).map((i) => Object.assign(pickFields('items', i), { id: uid(), fiscalYearId: target.id, categoryId: idMap[i.categoryId], budget: withB ? num(i.budget) : 0, responsibleId: withR ? i.responsibleId : '' }));
     if (!categories.length) return info('ปีที่เลือกยังไม่มีหมวด/แผนงาน');
     try {
-      await api('bulk', { tables: { categories, items } });
-      closeModal(); await loadAll(); rerender();
-      toast(`คัดลอก ${categories.length} หมวด ${items.length} รายการเรียบร้อย`);
+      await Busy.run('import', 'หมวดและรายการงบประมาณ', async () => { await api('bulk', { tables: { categories, items } }); await loadAll(); }, `คัดลอก ${categories.length} หมวด ${items.length} รายการเรียบร้อย`);
+      closeModal(); rerender();
     } catch (err) { alertErr(err); }
   };
 }
@@ -1028,7 +1109,7 @@ VIEWS.settings = () => {
     </form>
     <div class="space-y-4">
       <div class="panel animate-slide-up"><div class="panel-title"><span class="mi">database</span>การเชื่อมต่อฐานข้อมูล</div>
-        <div class="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-900"><b class="flex items-center gap-1.5"><span class="mi text-[18px]">check_circle</span>เชื่อมต่อ Google Sheets แล้ว</b><div class="text-xs break-all mt-1 opacity-80">${esc(API_URL)}</div>
+        <div class="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-900"><b class="flex items-center gap-1.5"><span class="mi text-[18px]">check_circle</span>เชื่อมต่อฐานข้อมูลแล้ว</b><div class="text-xs break-all mt-1 opacity-80">${esc(API_URL)}</div>
           <div class="text-xs mt-1 opacity-80">${CONFIG_URL ? 'กำหนดไว้ในไฟล์ config.js' : 'บันทึกไว้ในเบราว์เซอร์นี้ (ใส่ใน config.js เพื่อให้ทุกเครื่องใช้ได้ทันที)'}</div></div>
         <div class="flex gap-2 mt-3"><button id="tPing" class="btn btn-soft flex-1"><span class="mi">wifi_tethering</span>ทดสอบ</button>${CONFIG_URL ? '' : '<button id="tConn" class="btn btn-soft flex-1"><span class="mi">link</span>เปลี่ยน URL</button>'}</div>
       </div>
@@ -1044,9 +1125,9 @@ VIEWS.settings = () => {
     e.preventDefault();
     const vals = collect(form, F);
     vals.warnPercent = String(Math.min(100, Math.max(1, num(vals.warnPercent) || 80)));
-    try { S.settings = await api('saveSettings', { settings: vals }); applyBranding(); renderSidebar(); toast('บันทึกการตั้งค่าเรียบร้อย'); } catch (err) { alertErr(err); }
+    try { S.settings = await api('saveSettings', { settings: vals }); applyBranding(); renderSidebar(); } catch (err) { alertErr(err); }
   };
-  $('#tPing').onclick = async () => { const t0 = Date.now(); try { await api('ping'); toast(`เชื่อมต่อได้ (${Date.now() - t0} ms)`); } catch (err) { alertErr(err); } };
+  $('#tPing').onclick = async () => { const t0 = Date.now(); try { await api('ping', {}, { done: 'เชื่อมต่อฐานข้อมูลได้ปกติ' }); toast(`ตอบสนองภายใน ${Date.now() - t0} ms`, 'info'); } catch (err) { alertErr(err); } };
   $('#tBackup').onclick = () => { const d = {}; DATA_TABLES.forEach((t) => { d[t] = S.data[t]; }); download(`budget-backup_${today()}.json`, JSON.stringify({ app: 'budget-tracker', exportedAt: nowStr(), settings: S.settings, data: d }, null, 2), 'application/json'); toast('ดาวน์โหลดไฟล์สำรองแล้ว'); };
   $('#tRestore').onchange = (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) restoreBackup(f); };
   $('#tReset').onclick = resetData;
@@ -1064,10 +1145,9 @@ async function restoreBackup(file) {
   if (!Array.isArray(d.fiscalYears)) return alertErr(new Error('ไม่พบข้อมูลปีงบประมาณในไฟล์สำรอง'));
   if (!(await confirmBox('นำเข้าข้อมูลสำรอง?', `ข้อมูลปัจจุบัน (ยกเว้นผู้ใช้และการตั้งค่า) จะถูก<b>แทนที่</b>ด้วยข้อมูลในไฟล์<br>ปีงบประมาณ ${d.fiscalYears.length} ปี · รายการเบิกจ่าย ${(d.expenses || []).length} รายการ`, { danger: true, ok: 'นำเข้า' }))) return;
   try {
-    await api('reset');
     const tables = {}; DATA_TABLES.forEach((t) => { tables[t] = Array.isArray(d[t]) ? d[t] : []; });
-    await api('bulk', { tables });
-    await loadAll(); rerender(); toast('นำเข้าข้อมูลเรียบร้อย');
+    await Busy.run('import', 'ข้อมูลสำรอง', async () => { await api('reset'); await api('bulk', { tables }); await loadAll(); });
+    rerender();
   } catch (e) { alertErr(e); }
 }
 async function resetData() {
@@ -1078,7 +1158,7 @@ async function resetData() {
     ok = r.isConfirmed;
   } else ok = prompt('พิมพ์คำว่า ยืนยัน เพื่อล้างข้อมูลทั้งหมด') === 'ยืนยัน';
   if (!ok) return;
-  try { await api('reset'); await loadAll(); rerender(); toast('ล้างข้อมูลเรียบร้อย'); } catch (e) { alertErr(e); }
+  try { await Busy.run('reset', '', async () => { await api('reset'); await loadAll(); }); rerender(); } catch (e) { alertErr(e); }
 }
 
 /* ---------- 11) บันทึกกิจกรรม ---------- */
@@ -1154,7 +1234,7 @@ function openProfile() {
     const f = e.target.elements;
     if (f.newPassword.value.length < 6) return info('รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร');
     if (f.newPassword.value !== f.confirm.value) return info('รหัสผ่านใหม่และการยืนยันไม่ตรงกัน');
-    try { await api('changePassword', { oldPassword: f.oldPassword.value, newPassword: f.newPassword.value }); closeModal(); toast('เปลี่ยนรหัสผ่านเรียบร้อย'); } catch (err) { alertErr(err); }
+    try { await api('changePassword', { oldPassword: f.oldPassword.value, newPassword: f.newPassword.value }); closeModal(); } catch (err) { alertErr(err); }
   };
 }
 
@@ -1175,7 +1255,7 @@ function renderFooter() {
     <div class="w-9 h-9 rounded-xl bg-brand-500 text-white grid place-items-center shrink-0"><span class="mi text-[20px]">account_balance_wallet</span></div>
     <div class="min-w-0"><div class="font-bold text-brand-600 text-sm">${esc(s.systemName)}</div>
       ${s.reporterName ? `<div class="text-xs text-slate-500">ครูผู้รายงาน : <b class="text-slate-600">${esc(s.reporterName)}</b>${s.reporterPosition ? ` (${esc(s.reporterPosition)})` : ''}</div>` : ''}</div>
-    <div class="ml-auto text-xs text-slate-400">© ${new Date().getFullYear() + 543}${s.orgName ? ' ' + esc(s.orgName) : ''} · บันทึกข้อมูลด้วย Google Sheets</div></div>`;
+    <div class="ml-auto text-xs text-slate-400">© ${new Date().getFullYear() + 543}${s.orgName ? ' ' + esc(s.orgName) : ''} · บันทึกข้อมูลลงฐานข้อมูลอัตโนมัติ</div></div>`;
 }
 function renderSidebar() {
   if (!S.user) return;
@@ -1222,8 +1302,8 @@ function route() {
 function renderView() {
   killCharts();
   const m = MENU.find((x) => x.id === S.view) || MENU[0];
-  $('#pageTitle').textContent = m.label;
-  $('#pageSub').textContent = m.sub;
+  smoothText($('#pageTitle'), m.label);
+  smoothText($('#pageSub'), m.sub);
   $$('#nav .nav-item').forEach((a) => a.classList.toggle('active', a.dataset.nav === S.view));
   $('#view').onclick = null;
   try {
@@ -1233,7 +1313,9 @@ function renderView() {
     console.error(e);
     $('#view').innerHTML = emptyState('error', 'แสดงผลหน้านี้ไม่สำเร็จ', esc(e.message || e));
   }
-  window.scrollTo(0, 0);
+  const v = $('#view');
+  v.classList.remove('view-enter'); void v.offsetWidth; v.classList.add('view-enter');   // เล่นแอนิเมชันเข้าหน้าใหม่
+  try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { window.scrollTo(0, 0); }
 }
 function rerender() { renderSidebar(); renderView(); }
 function openSidebar() { $('#sidebar').classList.remove('-translate-x-full'); $('#backdrop').classList.remove('hidden'); }
@@ -1244,8 +1326,9 @@ function showLogin() {
   $('#login').classList.remove('hidden');
   $('#setupForm').classList.add('hidden');
   const f = $('#loginForm');
-  f.classList.remove('hidden');
+  f.classList.remove('hidden'); f.classList.remove('form-swap'); void f.offsetWidth; f.classList.add('form-swap');
   f.reset(); $('#loginErr').classList.add('hidden');
+  $('#loginGreet').textContent = greeting();
   $('#changeConn').classList.toggle('hidden', !!CONFIG_URL);
   if (S.bootError) { $('#loginErr').textContent = S.bootError; $('#loginErr').classList.remove('hidden'); }
   setTimeout(() => f.elements.username.focus(), 100);
@@ -1255,7 +1338,7 @@ function showSetup(msg) {
   $('#login').classList.remove('hidden');
   $('#loginForm').classList.add('hidden');
   const f = $('#setupForm');
-  f.classList.remove('hidden');
+  f.classList.remove('hidden'); f.classList.remove('form-swap'); void f.offsetWidth; f.classList.add('form-swap');
   f.elements.url.value = API_URL || String(store.get('bt_api_url', '') || '');
   $('#setupErr').classList.toggle('hidden', !msg);
   $('#setupErr').textContent = msg || '';
@@ -1270,8 +1353,8 @@ function showApp() {
   renderSidebar();
   route();
 }
-function splash(p, text) { const b = $('#splashBar'); if (b) b.style.width = p + '%'; if (text) $('#splashSub').textContent = text; }
-function hideSplash() { setTimeout(() => $('#splash').classList.add('hide'), 250); }
+function splash(p, text) { const b = $('#splashBar'); if (b) b.style.width = p + '%'; if (text) smoothText($('#splashSub'), text); }
+function hideSplash() { setTimeout(() => $('#splash').classList.add('hide'), 450); }
 
 function bindShell() {
   $('#loginForm').onsubmit = async (e) => {
@@ -1280,13 +1363,15 @@ function bindShell() {
     $('#loginErr').classList.add('hidden');
     btn.disabled = true; btn.innerHTML = '<span class="mi animate-spin">progress_activity</span>กำลังเข้าสู่ระบบ...';
     try {
-      const r = await api('login', { username: f.elements.username.value, password: f.elements.password.value });
-      S.token = r.token;
-      store.set('bt_session', { token: r.token, mode: API_URL });
-      await loadAll();
+      await Busy.run('login', '', async () => {
+        const r = await api('login', { username: f.elements.username.value, password: f.elements.password.value });
+        S.token = r.token;
+        store.set('bt_session', { token: r.token, mode: API_URL });
+        await loadAll();
+      }, null);
       S.bootError = null;
       showApp();
-      toast(`ยินดีต้อนรับ ${S.user.displayName}`);
+      toast(`${greeting()} คุณ${S.user.displayName}`);
     } catch (err) {
       $('#loginErr').textContent = errMsg(err);
       $('#loginErr').classList.remove('hidden');
@@ -1306,7 +1391,7 @@ function bindShell() {
     }
     btn.disabled = true; btn.innerHTML = '<span class="mi animate-spin">progress_activity</span>กำลังทดสอบการเชื่อมต่อ...';
     try {
-      const inf = await remote('publicInfo', {}, url);
+      const inf = await Busy.run('connect', '', () => remote('publicInfo', {}, url));
       if (!inf || !inf.settings) throw new Error('URL นี้ไม่ใช่ API ของระบบติดตามงบประมาณ — ตรวจสอบว่าวางโค้ด Code.gs ถูกต้อง');
       API_URL = url;
       store.set('bt_api_url', url);
@@ -1314,20 +1399,19 @@ function bindShell() {
       S.bootError = null;
       applyBranding();
       showLogin();
-      toast('เชื่อมต่อฐานข้อมูลสำเร็จ');
     } catch (ex) {
       err.textContent = errMsg(ex);
       err.classList.remove('hidden');
     } finally { btn.disabled = false; btn.innerHTML = '<span class="mi">link</span>ทดสอบและเชื่อมต่อ'; }
   };
-  $('#fySelect').onchange = (e) => { if (e.target.value) { setFy(e.target.value); toast('เปลี่ยนปีงบประมาณที่ติดตามแล้ว'); } };
+  $('#fySelect').onchange = (e) => { if (e.target.value) { setFy(e.target.value); const y = fyObj(); toast(`กำลังแสดงข้อมูลปีงบประมาณ ${y ? y.year : ''}`, 'info'); } };
   $('#menuBtn').onclick = openSidebar;
   $('#backdrop').onclick = closeSidebar;
   $('#searchBtn').onclick = openSearch;
   $('#userBtn').onclick = openProfile;
   $('#refreshBtn').onclick = async () => {
     const i = $('#refreshBtn .mi'); i.classList.add('animate-spin');
-    try { await loadAll(); rerender(); toast('โหลดข้อมูลล่าสุดแล้ว'); } catch (e) { alertErr(e); } finally { i.classList.remove('animate-spin'); }
+    try { await Busy.run('load', '', loadAll, 'อัปเดตข้อมูลล่าสุดแล้ว'); rerender(); } catch (e) { alertErr(e); } finally { i.classList.remove('animate-spin'); }
   };
   $('#logoutBtn').onclick = async () => {
     if (!(await confirmBox('ออกจากระบบ?', '', { icon: 'question', ok: 'ออกจากระบบ' }))) return;
@@ -1337,6 +1421,17 @@ function bindShell() {
     showLogin();
   };
   window.addEventListener('hashchange', route);
+  // ระลอกคลื่นเมื่อกดปุ่ม — ให้ทุกการกดรู้สึกนุ่มนวลและตอบสนองทันที
+  document.addEventListener('pointerdown', (e) => {
+    const t = e.target.closest && e.target.closest('.btn,.icon-btn,.nav-item');
+    if (!t || t.disabled) return;
+    const r = t.getBoundingClientRect(), d = Math.max(r.width, r.height) * 2.2;
+    const sp = document.createElement('span');
+    sp.className = 'ripple';
+    sp.style.cssText = `width:${d}px;height:${d}px;left:${e.clientX - r.left - d / 2}px;top:${e.clientY - r.top - d / 2}px`;
+    t.appendChild(sp);
+    setTimeout(() => sp.remove(), 650);
+  });
   document.addEventListener('click', (e) => {
     if (e.target.closest('[data-close]')) { closeModal(); return; }
     const g = e.target.closest('[data-go]');
@@ -1362,7 +1457,6 @@ function bindShell() {
       const r = await api('upload', { file: { name: file.name, mimeType: file.type || 'application/octet-stream', data } });
       target.value = r.url;
       target.dispatchEvent(new Event('input', { bubbles: true }));
-      toast('อัปโหลดไฟล์เรียบร้อย');
     } catch (err) { alertErr(err); } finally { lbl.style.opacity = ''; lbl.style.pointerEvents = ''; inp.value = ''; }
   });
 }
@@ -1374,9 +1468,10 @@ async function boot() {
     Chart.defaults.plugins.legend.labels.usePointStyle = true;
   }
   bindShell();
+  S.booting = true;   // ระหว่างหน้าโหลดแรก ใช้หน้าจอ splash แทนหน้าต่างกำลังโหลด
   API_URL = CONFIG_URL || String(store.get('bt_api_url', '') || '');
   splash(15, 'กำลังเริ่มต้นระบบ...');
-  if (!API_URL) { splash(100, 'พร้อมใช้งาน'); showSetup(); hideSplash(); return; }
+  if (!API_URL) { S.booting = false; splash(100, 'พร้อมใช้งาน'); showSetup(); hideSplash(); return; }
   try {
     splash(40, 'กำลังเชื่อมต่อฐานข้อมูล...');
     const inf = await api('publicInfo');
@@ -1387,8 +1482,9 @@ async function boot() {
   const sess = store.get('bt_session', null);
   if (!S.bootError && sess && sess.token && sess.mode === API_URL) {
     S.token = sess.token;
-    try { await loadAll(); splash(100, 'พร้อมใช้งาน'); showApp(); hideSplash(); return; } catch (e) { S.token = null; S.user = null; store.del('bt_session'); }
+    try { splash(80, 'กำลังโหลดข้อมูลของคุณ...'); await loadAll(); S.booting = false; splash(100, 'พร้อมใช้งาน'); showApp(); hideSplash(); return; } catch (e) { S.token = null; S.user = null; store.del('bt_session'); }
   }
+  S.booting = false;
   splash(100, 'พร้อมใช้งาน');
   showLogin();
   hideSplash();

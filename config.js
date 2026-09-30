@@ -5,6 +5,6 @@
  *    แนะนำให้ใส่ไว้ที่นี่ เพื่อให้ทุกเครื่องใช้งานได้ทันที
  * ============================================================= */
 window.APP_CONFIG = {
-  API_URL: ''
+  API_URL: 'https://script.google.com/macros/s/AKfycbwqYMTHhnHPcVF8ozwitgkwwWG912lBE9rByvM9qD8pEErkKJvBF5CrA-NHCXSzu5um/exec'
   // ตัวอย่าง: API_URL: 'https://script.google.com/macros/s/AKfycb.../exec'
 };
